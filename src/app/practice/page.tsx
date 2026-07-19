@@ -25,6 +25,7 @@ export default function PracticePage() {
   const [total, setTotal] = useState(0);
   const [topicFilter, setTopicFilter] = useState("");
   const [allTopics, setAllTopics] = useState<string[]>([]);
+  const [practiceData, setPracticeData] = useState<Record<number, { answer: string; result: PracticeResult | null }>>({});
 
   useEffect(() => {
     sentences.list({ limit: 100 }).then(r => {
@@ -35,16 +36,40 @@ export default function PracticePage() {
     }).catch(console.error).finally(() => setInit(false));
   }, []);
 
-  const select = (s: Sentence, i: number) => { setCurrent(s); setIdx(i); setResult(null); setAnswer(''); };
+  const select = (s: Sentence, i: number) => {
+    const saved = practiceData[s.id];
+    setCurrent(s); setIdx(i);
+    if (saved) { setAnswer(saved.answer); setResult(saved.result); }
+    else { setAnswer(''); setResult(null); }
+  };
+  const handleAnswerChange = (val: string) => {
+    setAnswer(val);
+    if (current) {
+      setPracticeData(prev => ({ ...prev, [current.id]: { ...prev[current.id], answer: val } }));
+    }
+  };
+
   const submit = async () => {
     if (!current || !answer.trim()) return;
     setLoading(true);
-    try { setResult(await practice.submit(current.id, answer.trim())); }
+    try {
+      const res = await practice.submit(current.id, answer.trim());
+      setResult(res);
+      setPracticeData(prev => ({ ...prev, [current.id]: { answer: answer.trim(), result: res } }));
+    }
     catch (e) { console.error(e); } finally { setLoading(false); }
   };
   const next = () => {
     if (idx + 1 < sentenceList.length) {
-      setCurrent(sentenceList[idx + 1]); setIdx(idx + 1); setResult(null); setAnswer('');
+      // Save current state before moving
+      if (current && answer.trim()) {
+        setPracticeData(prev => ({ ...prev, [current.id]: { answer, result } }));
+      }
+      const nextSent = sentenceList[idx + 1];
+      const saved = practiceData[nextSent.id];
+      setCurrent(nextSent); setIdx(idx + 1);
+      if (saved) { setAnswer(saved.answer); setResult(saved.result); }
+      else { setAnswer(''); setResult(null); }
     }
   };
 
@@ -121,7 +146,7 @@ export default function PracticePage() {
 
                     <div className="bg-white rounded-[20px] border border-[#F0F0EC] p-6" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
                       <h3 className="font-semibold text-[#2D3436] mb-3">你的答案</h3>
-                      <textarea value={answer} onChange={e => setAnswer(e.target.value)}
+                      <textarea value={answer} onChange={e => handleAnswerChange(e.target.value)}
                         className="w-full min-h-[120px] bg-[#FAFAF7] border border-[#F0F0EC] rounded-2xl p-4 outline-none focus:ring-2 focus:ring-[#8FD8B5]/30 text-sm leading-relaxed resize-y"
                         placeholder="输入你的英文翻译..." />
                       <div className="flex items-center justify-between mt-4">
@@ -198,4 +223,6 @@ export default function PracticePage() {
     </NavLayout>
   );
 }
+
+
 
