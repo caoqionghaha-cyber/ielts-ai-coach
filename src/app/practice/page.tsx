@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import NavLayout from '@/components/NavLayout';
 import { sentences, practice } from '@/lib/api';
 import type { Sentence, PracticeResult } from '@/lib/types';
@@ -25,7 +25,10 @@ export default function PracticePage() {
   const [total, setTotal] = useState(0);
   const [topicFilter, setTopicFilter] = useState("");
   const [allTopics, setAllTopics] = useState<string[]>([]);
-  const [practiceData, setPracticeData] = useState<Record<number, { answer: string; result: PracticeResult | null }>>({});
+  const [practiceData, setPracticeData] = useState<Record<number, { answer: string; result: PracticeResult | null }>>(() => {
+    try { return JSON.parse(localStorage.getItem('practiceData') || '{}'); }
+    catch { return {}; }
+  });
 
   useEffect(() => {
     sentences.list({ limit: 100 }).then(r => {
@@ -36,8 +39,15 @@ export default function PracticePage() {
     }).catch(console.error).finally(() => setInit(false));
   }, []);
 
+  // Persist practiceData to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('practiceData', JSON.stringify(practiceData));
+  }, [practiceData]);
+  const practiceDataRef = useRef(practiceData);
+  practiceDataRef.current = practiceData;
+
   const select = (s: Sentence, i: number) => {
-    const saved = practiceData[s.id];
+    const saved = practiceDataRef.current[s.id];
     setCurrent(s); setIdx(i);
     if (saved) { setAnswer(saved.answer); setResult(saved.result); }
     else { setAnswer(''); setResult(null); }
@@ -45,7 +55,9 @@ export default function PracticePage() {
   const handleAnswerChange = (val: string) => {
     setAnswer(val);
     if (current) {
-      setPracticeData(prev => ({ ...prev, [current.id]: { ...prev[current.id], answer: val } }));
+      const updated = { ...practiceDataRef.current, [current.id]: { ...practiceDataRef.current[current.id], answer: val } };
+      practiceDataRef.current = updated;
+      setPracticeData(updated);
     }
   };
 
@@ -55,7 +67,9 @@ export default function PracticePage() {
     try {
       const res = await practice.submit(current.id, answer.trim());
       setResult(res);
-      setPracticeData(prev => ({ ...prev, [current.id]: { answer: answer.trim(), result: res } }));
+      const updated = { ...practiceDataRef.current, [current.id]: { answer: answer.trim(), result: res } };
+      practiceDataRef.current = updated;
+      setPracticeData(updated);
     }
     catch (e) { console.error(e); } finally { setLoading(false); }
   };
@@ -63,10 +77,12 @@ export default function PracticePage() {
     if (idx + 1 < sentenceList.length) {
       // Save current state before moving
       if (current && answer.trim()) {
-        setPracticeData(prev => ({ ...prev, [current.id]: { answer, result } }));
+        const updated2 = { ...practiceDataRef.current, [current.id]: { answer, result } };
+        practiceDataRef.current = updated2;
+        setPracticeData(updated2);
       }
       const nextSent = sentenceList[idx + 1];
-      const saved = practiceData[nextSent.id];
+      const saved = practiceDataRef.current[nextSent.id];
       setCurrent(nextSent); setIdx(idx + 1);
       if (saved) { setAnswer(saved.answer); setResult(saved.result); }
       else { setAnswer(''); setResult(null); }
@@ -223,6 +239,10 @@ export default function PracticePage() {
     </NavLayout>
   );
 }
+
+
+
+
 
 
 
