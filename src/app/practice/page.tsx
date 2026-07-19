@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useRef, useState } from 'react';
 import NavLayout from '@/components/NavLayout';
 import { sentences, practice } from '@/lib/api';
@@ -25,6 +25,9 @@ export default function PracticePage() {
   const [total, setTotal] = useState(0);
   const [topicFilter, setTopicFilter] = useState("");
   const [allTopics, setAllTopics] = useState<string[]>([]);
+  const [practiceHistory, setPracticeHistory] = useState<Record<number, PracticeResult[]>>({});
+  const [historyLoading, setHistoryLoading] = useState<Record<number, boolean>>({});
+  const [expandedHistory, setExpandedHistory] = useState<Record<number, boolean>>({});
   const [practiceData, setPracticeData] = useState<Record<number, { answer: string; result: PracticeResult | null }>>(() => {
     try { return JSON.parse(localStorage.getItem('practiceData') || '{}'); }
     catch { return {}; }
@@ -39,6 +42,11 @@ export default function PracticePage() {
     }).catch(console.error).finally(() => setInit(false));
   }, []);
 
+  // Fetch history for initial sentence
+  useEffect(() => {
+    if (current) fetchHistory(current.id);
+  }, [current]);
+
   // Persist practiceData to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('practiceData', JSON.stringify(practiceData));
@@ -46,7 +54,21 @@ export default function PracticePage() {
   const practiceDataRef = useRef(practiceData);
   practiceDataRef.current = practiceData;
 
+  const fetchHistory = async (sentenceId: number) => {
+    if (practiceHistory[sentenceId] || historyLoading[sentenceId]) return;
+    setHistoryLoading(prev => ({ ...prev, [sentenceId]: true }));
+    try {
+      const res = await fetch('/api/practice/history?sentence_id=' + sentenceId + '&limit=20');
+      if (res.ok) {
+        const data = await res.json();
+        setPracticeHistory(prev => ({ ...prev, [sentenceId]: data }));
+      }
+    } catch (e) { console.error(e); }
+    finally { setHistoryLoading(prev => ({ ...prev, [sentenceId]: false })); }
+  };
+
   const select = (s: Sentence, i: number) => {
+    fetchHistory(s.id);
     const saved = practiceDataRef.current[s.id];
     setCurrent(s); setIdx(i);
     if (saved) { setAnswer(saved.answer); setResult(saved.result); }
@@ -67,6 +89,7 @@ export default function PracticePage() {
     try {
       const res = await practice.submit(current.id, answer.trim());
       setResult(res);
+      fetchHistory(current.id);
       const updated = { ...practiceDataRef.current, [current.id]: { answer: answer.trim(), result: res } };
       practiceDataRef.current = updated;
       setPracticeData(updated);
@@ -227,6 +250,55 @@ export default function PracticePage() {
                           <h4 className="font-semibold text-sm text-[#B8952E] flex items-center gap-1.5 mb-2"><AlertCircle className="w-4 h-4" />雅思提分建议</h4>
                           <p className="text-sm text-[#6B5E2E]">{result.feedback.ielts_tips}</p>
                         </div>
+
+                        {/* Practice History */}
+                        {current && practiceHistory[current.id] && practiceHistory[current.id].length > 0 && (
+                          <div className="border-t border-[#F0F0EC] pt-4 mt-4">
+                            <button
+                              onClick={() => setExpandedHistory(prev => ({ ...prev, [current.id]: !prev[current.id] }))}
+                              className="flex items-center justify-between w-full text-left"
+                            >
+                              <h4 className="font-semibold text-sm text-[#636E72] flex items-center gap-1.5">
+                                <Sparkles className="w-4 h-4 text-[#B2BEC3]" />
+                                History ({practiceHistory[current.id].length})
+                              </h4>
+                              <span className="text-xs text-[#B2BEC3]">{expandedHistory[current.id] ? "▲" : "▼"}</span>
+                            </button>
+                            {expandedHistory[current.id] && (
+                              <div className="space-y-3 mt-3">
+                                {practiceHistory[current.id].map((h, hidx) => {
+                                  const f = h.feedback;
+                                  return (
+                                    <div key={h.id} className="bg-[#FAFAF7] rounded-2xl p-3 border border-[#F0F0EC]">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] text-[#B2BEC3] font-mono">
+                                          {new Date(h.practice_time).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                        </span>
+                                        <span className={"text-xs font-bold px-2 py-0.5 rounded-full " + ((f?.total_score || h.score) >= 80 ? "bg-[#E6F7F0] text-[#8FD8B5]" : (f?.total_score || h.score) >= 60 ? "bg-[#FFF8E1] text-[#B8952E]" : "bg-[#FFF5F5] text-[#FF8A8A]")}>
+                                          {(f?.total_score || h.score)}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-[#2D3436] font-medium mb-1.5">{h.answer}</p>
+                                      {f && f.errors && f.errors.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mb-1">
+                                          {f.errors.map((err, ei) => (
+                                            <span key={ei} className="text-[10px] px-1.5 py-0.5 bg-[#FFF5F5] text-[#FF8A8A] rounded-lg">
+                                              {err.wrong}→{err.correct}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {f && f.improvement && (
+                                        <p className="text-[10px] text-[#636E72] leading-relaxed truncate">{f.improvement}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                       </div>
                     )}
                   </>
@@ -239,6 +311,7 @@ export default function PracticePage() {
     </NavLayout>
   );
 }
+
 
 
 

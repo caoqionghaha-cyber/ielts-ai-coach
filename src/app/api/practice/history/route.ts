@@ -4,15 +4,16 @@ import { getUserFromToken } from '@/lib/server/helpers';
 
 export async function GET(req: NextRequest) {
   const user = getUserFromToken(req);
-  if (!user) return NextResponse.json({ detail: '未登录' }, { status: 401 });
   
   const db = readDb();
   const { searchParams } = new URL(req.url);
   const skip = parseInt(searchParams.get('skip') || '0');
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const limit = parseInt(searchParams.get('limit') || '50');
+  const sentenceId = searchParams.get('sentence_id') ? parseInt(searchParams.get('sentence_id')!) : null;
   
-  const userPractices = db.practices
-    .filter(p => p.user_id === user.id)
+  let userPractices = db.practices
+    .filter(p => !user || p.user_id === user.id)
+    .filter(p => !sentenceId || p.sentence_id === sentenceId)
     .sort((a, b) => new Date(b.practice_time).getTime() - new Date(a.practice_time).getTime())
     .slice(skip, skip + limit);
   
