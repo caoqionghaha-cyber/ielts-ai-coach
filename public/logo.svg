@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8FD8B5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6BBF99;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" style="stop-color:#2D3436;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8FD8B5;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#00000015"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGrad)" filter="url(#shadow)"/>
+
+  <!-- Pen nib (writing) -->
+  <g transform="translate(256, 240)">
+    <path d="M0,-90 L30,20 L0,60 L-30,20 Z"
+          fill="#FFFFFF" opacity="0.95"
+          stroke="#2D3436" stroke-width="2"/>
+    <!-- Pen tip -->
+    <path d="M-4,60 L4,60 L2,75 L-2,75 Z"
+          fill="#2D3436"/>
+    <!-- Pen line detail -->
+    <line x1="-15" y1="10" x2="15" y2="10" stroke="#D0D0D0" stroke-width="1.5"/>
+    <line x1="-12" y1="22" x2="12" y2="22" stroke="#D0D0D0" stroke-width="1.5"/>
+  </g>
+
+  <!-- Upward arrow (improvement/growth) - wrapping around the pen -->
+  <g transform="translate(256, 256)">
+    <!-- Arrow shaft -->
+    <path d="M50,40 C65,10 70,-30 55,-70 C50,-85 40,-95 30,-100"
+          fill="none" stroke="url(#arrowGrad)" stroke-width="8" stroke-linecap="round"/>
+    <!-- Arrow head -->
+    <path d="M18,-95 L30,-115 L42,-95"
+          fill="none" stroke="#2D3436" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Small sparkle/star (achievement) -->
+  <g transform="translate(340, 160)">
+    <path d="M0,-15 L4,-5 L15,-5 L6,3 L10,15 L0,8 L-10,15 L-6,3 L-15,-5 L-4,-5 Z"
+          fill="#FFF1C9" opacity="0.9"/>
+  </g>
+
+  <!-- Text line - writing suggestion -->
+  <path d="M180,380 Q200,370 220,380 Q240,390 260,380 Q280,370 300,380 Q320,390 340,380"
+        fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+  <path d="M170,400 Q200,388 240,400 Q280,412 310,400 Q330,392 350,400"
+        fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+</svg>
