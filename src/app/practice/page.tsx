@@ -28,6 +28,7 @@ export default function PracticePage() {
   const [practiceHistory, setPracticeHistory] = useState<Record<number, PracticeResult[]>>({});
   const [historyLoading, setHistoryLoading] = useState<Record<number, boolean>>({});
   const [expandedHistory, setExpandedHistory] = useState<Record<number, boolean>>({});
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [practiceData, setPracticeData] = useState<Record<number, { answer: string; result: PracticeResult | null }>>(() => {
     try { return JSON.parse(localStorage.getItem('practiceData') || '{}'); }
     catch { return {}; }
@@ -112,6 +113,32 @@ export default function PracticePage() {
       else { setAnswer(''); setResult(null); }
     }
   };
+
+
+  // Highlight errors in answer text
+  function highlightErrors(text: string, errors: Array<{ wrong: string; correct: string }>): { text: string; hasError: boolean }[] {
+    if (!errors || errors.length === 0) return [{ text, hasError: false }];
+    let result: { text: string; hasError: boolean }[] = [{ text, hasError: false }];
+    for (const err of errors) {
+      if (!err.wrong || err.wrong.trim() === "") continue;
+      const newParts: { text: string; hasError: boolean }[] = [];
+      for (const part of result) {
+        if (part.hasError) { newParts.push(part); continue; }
+        const lower = part.text.toLowerCase();
+        const wrongLower = err.wrong.toLowerCase().trim();
+        const idx = lower.indexOf(wrongLower);
+        if (idx >= 0) {
+          if (idx > 0) newParts.push({ text: part.text.substring(0, idx), hasError: false });
+          newParts.push({ text: part.text.substring(idx, idx + wrongLower.length), hasError: true });
+          if (idx + wrongLower.length < part.text.length) newParts.push({ text: part.text.substring(idx + wrongLower.length), hasError: false });
+        } else {
+          newParts.push(part);
+        }
+      }
+      result = newParts;
+    }
+    return result;
+  }
 
   if (init) return <NavLayout><div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-3 border-[#8FD8B5] border-t-transparent rounded-full" /></div></NavLayout>;
 
@@ -309,6 +336,105 @@ export default function PracticePage() {
           </>
         )}
       </div>
+    
+      {/* AI Feedback Modal */}
+      {showFeedbackModal && result && result.feedback && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40" onClick={() => setShowFeedbackModal(false)}>
+          <div className="bg-white rounded-[24px] max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} style={{ boxShadow: "0 25px 60px rgba(0,0,0,0.15)" }}>
+            {/* Modal Header */}
+            <div className="p-6 pb-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className={"w-5 h-5 " + (result.feedback.total_score >= 80 ? "text-[#8FD8B5]" : result.feedback.total_score >= 60 ? "text-[#FFD93D]" : "text-[#FF8A8A]")} />
+                <h3 className="font-bold text-[#2D3436]">AI Feedback</h3>
+              </div>
+              <button onClick={() => setShowFeedbackModal(false)} className="p-1.5 hover:bg-[#F0F0EC] rounded-xl transition-all text-[#636E72] text-sm">✕</button>
+            </div>
+
+            {/* Score */}
+            <div className="px-6 pt-4 text-center">
+              <div className={"inline-flex items-center justify-center w-16 h-16 rounded-full text-2xl font-bold " + (result.feedback.total_score >= 80 ? "bg-[#E6F7F0] text-[#8FD8B5]" : result.feedback.total_score >= 60 ? "bg-[#FFF8E1] text-[#B8952E]" : "bg-[#FFF5F5] text-[#FF8A8A]")}>
+                {result.feedback.total_score}
+              </div>
+              <p className="text-xs text-[#B2BEC3] mt-1">Score</p>
+            </div>
+
+            {/* Highlighted Answer */}
+            {result.answer && (
+              <div className="px-6 pt-4">
+                <p className="text-xs font-semibold text-[#B2BEC3] mb-1.5">Your Answer</p>
+                <div className="bg-[#FAFAF7] rounded-2xl p-3 border border-[#F0F0EC] text-sm leading-relaxed">
+                  {highlightErrors(result.answer, result.feedback.errors).map((part, i) => (
+                    part.hasError
+                      ? <span key={i} className="bg-[#FFE0E0] text-[#FF6B6B] px-1 rounded border border-[#FF8A8A]/30 font-medium">{part.text}</span>
+                      : <span key={i}>{part.text}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-scores */}
+            <div className="px-6 pt-4 grid grid-cols-2 gap-3">
+              <div className="bg-[#E6F7F0] rounded-2xl p-3 text-center">
+                <p className="text-xs text-[#636E72]">Grammar</p>
+                <p className="text-lg font-bold text-[#8FD8B5]">{result.feedback.grammar_score}</p>
+              </div>
+              <div className="bg-[#E6F7F0] rounded-2xl p-3 text-center">
+                <p className="text-xs text-[#636E72]">Vocabulary</p>
+                <p className="text-lg font-bold text-[#8FD8B5]">{result.feedback.vocabulary_score}</p>
+              </div>
+            </div>
+
+            {/* Errors list */}
+            {result.feedback.errors.length > 0 && (
+              <div className="px-6 pt-4">
+                <h4 className="font-semibold text-sm text-[#2D3436] mb-2 flex items-center gap-1.5"><XCircle className="w-4 h-4 text-[#FF8A8A]" />Errors</h4>
+                <div className="space-y-2">
+                  {result.feedback.errors.map((err, i) => (
+                    <div key={i} className="bg-[#FFF5F5] rounded-2xl p-3">
+                      <p className="text-sm text-[#2D3436]">
+                        <span className="font-semibold text-[#FF8A8A] text-[10px] uppercase">[{err.type}]</span>{" "}
+                        <span className="line-through text-[#FF8A8A]">{err.wrong}</span>
+                        {" → "}
+                        <span className="font-semibold text-[#8FD8B5]">{err.correct}</span>
+                      </p>
+                      {err.context && <p className="text-xs text-[#636E72] mt-0.5">{err.context}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Improvement */}
+            <div className="px-6 pt-4">
+              <div className="bg-[#E6F7F0] rounded-2xl p-4">
+                <h4 className="font-semibold text-sm text-[#8FD8B5] flex items-center gap-1.5 mb-2">
+                  <Sparkles className="w-4 h-4" />
+                  {result.feedback.total_score >= 90 ? "🎉 Excellent!" : result.feedback.total_score >= 80 ? "👏 Great Work!" : "Improvement"}
+                </h4>
+                <p className="text-sm text-[#636E72] whitespace-pre-line">{result.feedback.improvement}</p>
+              </div>
+            </div>
+
+            {/* Reference */}
+            {(result.feedback.optimized_version || result.feedback.ielts_tips) && (
+              <div className="px-6 pt-4">
+                <div className="bg-[#FFF1C9]/50 rounded-2xl p-4">
+                  <h4 className="font-semibold text-sm text-[#B8952E] flex items-center gap-1.5 mb-2"><AlertCircle className="w-4 h-4" />IELTS Tip</h4>
+                  <p className="text-sm text-[#6B5E2E]">{result.feedback.ielts_tips}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Close button */}
+            <div className="px-6 pb-6 pt-4">
+              <button onClick={() => setShowFeedbackModal(false)} className="w-full py-3 bg-[#8FD8B5] text-white rounded-[16px] font-semibold hover:bg-[#6BBF99] transition-all">
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </NavLayout>
   );
 }
