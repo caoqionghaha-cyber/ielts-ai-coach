@@ -54,8 +54,8 @@ export default function PracticePage() {
   const practiceDataRef = useRef(practiceData);
   practiceDataRef.current = practiceData;
 
-  const fetchHistory = async (sentenceId: number) => {
-    if (practiceHistory[sentenceId] !== undefined || historyLoading[sentenceId]) return;
+  const fetchHistory = async (sentenceId: number, force?: boolean) => {
+    if ((practiceHistory[sentenceId] !== undefined || historyLoading[sentenceId]) && !force) return;
     setHistoryLoading(prev => ({ ...prev, [sentenceId]: true }));
     try {
       const res = await fetch('/api/practice/history?sentence_id=' + sentenceId + '&limit=20');
@@ -83,18 +83,17 @@ export default function PracticePage() {
     }
   };
 
-  const submit = async () => {
+    const submit = async () => {
     if (!current || !answer.trim()) return;
     setLoading(true);
     try {
       const res = await practice.submit(current.id, answer.trim());
       setResult(res);
-      // Clear cached history so it refetches after submit
-      setPracticeHistory(prev => ({ ...prev, [current.id]: undefined as any }));
-      fetchHistory(current.id);
       const updated = { ...practiceDataRef.current, [current.id]: { answer: answer.trim(), result: res } };
       practiceDataRef.current = updated;
       setPracticeData(updated);
+      const prev2 = { ...practiceHistory }; delete prev2[current!.id]; setPracticeHistory(prev2);
+      setTimeout(() => fetchHistory(current.id), 100);
     }
     catch (e) { console.error(e); } finally { setLoading(false); }
   };
