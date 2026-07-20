@@ -71,8 +71,10 @@ export default function PracticePage() {
   const select = (s: Sentence, i: number) => {
     fetchHistory(s.id);
     setCurrent(s); setIdx(i);
-    setAnswer('');
-    setResult(null);
+    const saved = practiceDataRef.current[s.id];
+    if (saved && saved.result) { setAnswer(''); setResult(null); }
+    else if (saved) { setAnswer(saved.answer); setResult(null); }
+    else { setAnswer(''); setResult(null); }
   };
   const handleAnswerChange = (val: string) => {
     setAnswer(val);
@@ -109,7 +111,8 @@ export default function PracticePage() {
       const nextSent = sentenceList[idx + 1];
       const saved = practiceDataRef.current[nextSent.id];
       setCurrent(nextSent); setIdx(idx + 1);
-      if (saved) { setAnswer(saved.answer); setResult(saved.result); }
+      if (saved && saved.result) { setAnswer(''); setResult(null); }
+      else if (saved) { setAnswer(saved.answer); setResult(null); }
       else { setAnswer(''); setResult(null); }
     }
   };
@@ -451,6 +454,7 @@ export default function PracticePage() {
     </NavLayout>
   );
 }
+
 
 
 
